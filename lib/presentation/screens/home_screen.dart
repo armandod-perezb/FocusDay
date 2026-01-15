@@ -66,18 +66,51 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
 
-    if (index == 2) {
-      _showTaskForm();
-      _pageController.animateToPage(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-      setState(() {
-        _selectedIndex = 0;
-      });
+    // Mapear índice de navbar a índice de PageView
+    // NavBar: 0=Home, 1=Tareas, 2=Add new, 3=Calendario, 4=Perfil
+    // PageView: 0=Home, 1=Tareas, 2=Calendario, 3=Perfil
+
+    switch (index) {
+      case 0:
+        // Home
+        _pageController.animateToPage(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        break;
+      case 1:
+        // Tareas
+        _pageController.animateToPage(
+          1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        break;
+      case 2:
+        // Add new
+        _showTaskForm();
+        setState(() {
+          _selectedIndex = 0;
+        });
+        break;
+      case 3:
+        // Calendario
+        _pageController.animateToPage(
+          2,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        break;
+      case 4:
+        // Perfil
+        _pageController.animateToPage(
+          3,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        break;
     }
   }
 
@@ -122,9 +155,25 @@ class _HomeScreenState extends State<HomeScreen> {
         child: PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
-          onPageChanged: (index) {
+          onPageChanged: (pageIndex) {
             setState(() {
-              _selectedIndex = index;
+              // Mapear índice de página a índice de navbar
+              // PageView: 0=Home, 1=Tareas, 2=Calendario, 3=Perfil
+              // NavBar: 0=Home, 1=Tareas, 2=Add new, 3=Calendario, 4=Perfil
+              switch (pageIndex) {
+                case 0:
+                  _selectedIndex = 0; // Home
+                  break;
+                case 1:
+                  _selectedIndex = 1; // Tareas
+                  break;
+                case 2:
+                  _selectedIndex = 3; // Calendario
+                  break;
+                case 3:
+                  _selectedIndex = 4; // Perfil
+                  break;
+              }
             });
           },
           children: [
