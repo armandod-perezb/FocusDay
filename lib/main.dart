@@ -20,18 +20,34 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+          seedColor: Colors.purple,
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        scaffoldBackgroundColor: Colors.transparent,
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
+          backgroundColor: Colors.transparent,
         ),
       ),
-      home: BlocProvider(
-        create: (context) => sl<TaskBloc>(),
-        child: const HomeScreen(),
+      home: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.purple.shade50,
+              Colors.blue.shade50,
+              Colors.purple.shade100,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: BlocProvider(
+          create: (context) => sl<TaskBloc>(),
+          child: const HomeScreen(),
+        ),
       ),
     );
   }
