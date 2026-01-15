@@ -311,28 +311,30 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildDateSelector(),
         Expanded(
-          child: BlocConsumer<TaskBloc, TaskState>(
-            listener: (context, state) {
-              if (state is TaskError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
-              } else if (state is TaskOperationSuccess) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
-              }
-            },
-            builder: (context, state) {
-              if (state is TaskLoading) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (state is TaskLoaded) {
-                return TaskList(tasks: state.tasks);
-              } else if (state is TaskError) {
-                return Center(child: Text(state.message));
-              }
-              return const Center(child: Text('No hay tareas'));
-            },
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.home, size: 80, color: Colors.purple.shade400),
+                const SizedBox(height: 20),
+                Text(
+                  'Bienvenido a FocusDay',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Gestiona tus tareas de forma eficiente',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.blue.shade600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -340,30 +342,48 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTasksTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.checklist, size: 80, color: Colors.purple.shade400),
-          const SizedBox(height: 20),
-          Text(
-            'Todas tus Tareas',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.purple.shade700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Aquí verás todas tus tareas pendientes',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.blue.shade600,
-            ),
-          ),
-        ],
-      ),
+    // Load all tasks when tasks tab is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAllTasks();
+    });
+
+    return BlocConsumer<TaskBloc, TaskState>(
+      listener: (context, state) {
+        if (state is TaskError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        } else if (state is TaskOperationSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        }
+      },
+      builder: (context, state) {
+        if (state is TaskLoading) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (state is TaskLoaded) {
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Todas tus Tareas',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade700,
+                  ),
+                ),
+              ),
+              Expanded(child: TaskList(tasks: state.tasks)),
+            ],
+          );
+        } else if (state is TaskError) {
+          return Center(child: Text(state.message));
+        }
+        return const Center(child: Text('No hay tareas'));
+      },
     );
   }
 
