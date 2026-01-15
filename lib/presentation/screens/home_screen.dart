@@ -5,6 +5,7 @@ import '../bloc/task_event.dart';
 import '../bloc/task_state.dart';
 import '../widgets/task_list.dart';
 import '../widgets/task_form_bottom_sheet.dart';
+import '../../domain/entities/task.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int calendarSelectedDay = 0;
   int calendarSelectedMonth = 0;
   int calendarSelectedYear = 0;
+  List<Task> allTasks = [];
 
   @override
   void initState() {
@@ -358,19 +360,30 @@ class _HomeScreenState extends State<HomeScreen> {
     List<int> calendarDays = _getCalendarDays(calendarSelectedMonth, calendarSelectedYear);
     String monthName = _getMonthName(calendarSelectedMonth);
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildCalendarYearSelector(),
-            const SizedBox(height: 20),
-            _buildCalendarMonthSelector(monthName),
-            const SizedBox(height: 20),
-            _buildCalendarGrid(calendarDays),
-            const SizedBox(height: 20),
-            _buildCalendarDateDisplay(),
-          ],
+    return BlocListener<TaskBloc, TaskState>(
+      listener: (context, state) {
+        if (state is TaskLoaded) {
+          setState(() {
+            allTasks = state.tasks;
+          });
+        }
+      },
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              _buildCalendarYearSelector(),
+              const SizedBox(height: 20),
+              _buildCalendarMonthSelector(monthName),
+              const SizedBox(height: 20),
+              _buildCalendarGrid(calendarDays),
+              const SizedBox(height: 20),
+              _buildCalendarDateDisplay(),
+              const SizedBox(height: 20),
+              _buildCalendarTasksList(),
+            ],
+          ),
         ),
       ),
     );
@@ -850,6 +863,181 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.white,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarTasksList() {
+    // Obtener tareas del día seleccionado en el calendario
+    final selectedDateTime = DateTime(calendarSelectedYear, calendarSelectedMonth, calendarSelectedDay);
+    final tasksForDay = allTasks.where((task) {
+      final taskDate = DateTime(task.date.year, task.date.month, task.date.day);
+      return taskDate == selectedDateTime;
+    }).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.white.withValues(alpha: 0.95), Colors.blue.shade50],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.purple.shade200,
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withValues(alpha: 0.15),
+            blurRadius: 15,
+            spreadRadius: 3,
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tareas del día',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.purple.shade700,
+            ),
+          ),
+          const SizedBox(height: 15),
+          if (tasksForDay.isEmpty)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 60,
+                    color: Colors.green.shade300,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'No hay tareas para este día',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.blue.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: tasksForDay.length,
+              itemBuilder: (context, index) {
+                final task = tasksForDay[index];
+                final priorityColor = task.priority == TaskPriority.high
+                    ? Colors.red
+                    : task.priority == TaskPriority.medium
+                        ? Colors.orange
+                        : Colors.green;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white,
+                        Colors.blue.shade50,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: priorityColor.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: priorityColor.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: priorityColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                task.title,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple.shade700,
+                                  decoration: task.isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (task.description != null)
+                                Text(
+                                  task.description!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.blue.shade600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              const SizedBox(height: 4),
+                              Text(
+                                task.priority.toString().split('.').last.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: priorityColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (task.isCompleted)
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 28,
+                          )
+                        else
+                          Icon(
+                            Icons.radio_button_unchecked,
+                            color: priorityColor.withValues(alpha: 0.5),
+                            size: 28,
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
