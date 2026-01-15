@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../widgets/task_detail_dialog.dart';
 import '../bloc/task_bloc.dart';
 import '../bloc/task_event.dart';
 import '../bloc/task_state.dart';
@@ -20,21 +22,23 @@ class _HomeScreenState extends State<HomeScreen> {
   late PageController _pageController;
 
   // Calendario variables
-  int calendarSelectedDay = 0;
-  int calendarSelectedMonth = 0;
-  int calendarSelectedYear = 0;
+  int calendarSelectedDay = 1;
+  int calendarSelectedMonth = 1;
+  int calendarSelectedYear = 2000;
   List<Task> allTasks = [];
 
   @override
   void initState() {
     super.initState();
-    _loadTasks();
+
     _pageController = PageController(initialPage: 0);
 
     final now = DateTime.now();
     calendarSelectedDay = now.day;
     calendarSelectedMonth = now.month;
     calendarSelectedYear = now.year;
+
+    _loadTasks();
   }
 
   @override
@@ -47,13 +51,25 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<TaskBloc>().add(LoadTasksByDate(selectedDate));
   }
 
+  void _loadAllTasks() {
+    context.read<TaskBloc>().add(LoadAllTasksEvent());
+  }
+
   void _showTaskForm() {
+    final taskBloc = context.read<TaskBloc>();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => TaskFormBottomSheet(
-        selectedDate: selectedDate,
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return BlocProvider.value(
+          value: taskBloc,
+          child: TaskFormBottomSheet(
+            selectedDate: selectedDate,
+          ),
+        );
+      },
     );
   }
 
@@ -69,13 +85,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = index;
     });
 
-    // Mapear índice de navbar a índice de PageView
     // NavBar: 0=Home, 1=Tareas, 2=Add new, 3=Calendario, 4=Perfil
     // PageView: 0=Home, 1=Tareas, 2=Calendario, 3=Perfil
-
     switch (index) {
       case 0:
-        // Home
         _pageController.animateToPage(
           0,
           duration: const Duration(milliseconds: 300),
@@ -83,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 1:
-        // Tareas
         _pageController.animateToPage(
           1,
           duration: const Duration(milliseconds: 300),
@@ -91,14 +103,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 2:
-        // Add new
         _showTaskForm();
         setState(() {
           _selectedIndex = 0;
         });
         break;
       case 3:
-        // Calendario
         _pageController.animateToPage(
           2,
           duration: const Duration(milliseconds: 300),
@@ -106,7 +116,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         break;
       case 4:
-        // Perfil
         _pageController.animateToPage(
           3,
           duration: const Duration(milliseconds: 300),
@@ -159,21 +168,20 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (pageIndex) {
             setState(() {
-              // Mapear índice de página a índice de navbar
               // PageView: 0=Home, 1=Tareas, 2=Calendario, 3=Perfil
               // NavBar: 0=Home, 1=Tareas, 2=Add new, 3=Calendario, 4=Perfil
               switch (pageIndex) {
                 case 0:
-                  _selectedIndex = 0; // Home
+                  _selectedIndex = 0;
                   break;
                 case 1:
-                  _selectedIndex = 1; // Tareas
+                  _selectedIndex = 1;
                   break;
                 case 2:
-                  _selectedIndex = 3; // Calendario
+                  _selectedIndex = 3;
                   break;
                 case 3:
-                  _selectedIndex = 4; // Perfil
+                  _selectedIndex = 4;
                   break;
               }
             });
@@ -259,7 +267,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                child: Icon(Icons.add, size: 26, color: Colors.purple.shade600),
+                child:
+                    Icon(Icons.add, size: 26, color: Colors.purple.shade600),
               ),
               label: 'Add new',
             ),
@@ -294,6 +303,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // -------------------- TABS --------------------
 
   Widget _buildHomeTab() {
     return Column(
@@ -357,8 +368,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCalendarTab() {
-    List<int> calendarDays = _getCalendarDays(calendarSelectedMonth, calendarSelectedYear);
-    String monthName = _getMonthName(calendarSelectedMonth);
+    final calendarDays =
+        _getCalendarDays(calendarSelectedMonth, calendarSelectedYear);
+    final monthName = _getMonthName(calendarSelectedMonth);
+
+    // Load all tasks when calendar tab is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAllTasks();
+    });
 
     return BlocListener<TaskBloc, TaskState>(
       listener: (context, state) {
@@ -416,6 +433,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // -------------------- HOME DATE SELECTOR --------------------
 
   Widget _buildDateSelector() {
     return Container(
@@ -482,57 +501,81 @@ class _HomeScreenState extends State<HomeScreen> {
     final today = DateTime(now.year, now.month, now.day);
     final dateToCheck = DateTime(date.year, date.month, date.day);
 
-    if (dateToCheck == today) {
-      return 'Hoy';
-    } else if (dateToCheck == today.add(const Duration(days: 1))) {
-      return 'Mañana';
-    } else if (dateToCheck == today.subtract(const Duration(days: 1))) {
-      return 'Ayer';
-    }
+    if (dateToCheck == today) return 'Hoy';
+    if (dateToCheck == today.add(const Duration(days: 1))) return 'Mañana';
+    if (dateToCheck == today.subtract(const Duration(days: 1))) return 'Ayer';
 
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  // Métodos del calendario
+  // -------------------- CALENDAR HELPERS --------------------
+
   int _getDaysInMonth(int month, int year) {
     if (month == 2) {
-      return (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 29 : 28;
+      return (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
+          ? 29
+          : 28;
     }
     return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+    // month: 1..12
   }
 
   int _getFirstDayOfMonth(int month, int year) {
-    return DateTime(year, month, 1).weekday;
+    return DateTime(year, month, 1).weekday; // Lun=1..Dom=7
   }
 
   List<int> _getCalendarDays(int month, int year) {
-    List<int> days = [];
-    int daysInMonth = _getDaysInMonth(month, year);
-    int firstDay = _getFirstDayOfMonth(month, year);
+    final List<int> days = [];
+    final daysInMonth = _getDaysInMonth(month, year);
+    final firstDay = _getFirstDayOfMonth(month, year);
 
     for (int i = 0; i < firstDay - 1; i++) {
       days.add(0);
     }
-
-    for (int i = 1; i <= daysInMonth; i++) {
-      days.add(i);
+    for (int d = 1; d <= daysInMonth; d++) {
+      days.add(d);
     }
-
     return days;
   }
 
   String _getMonthName(int month) {
     const months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre'
     ];
     return months[month - 1];
   }
 
   String _getDayOfWeekName(DateTime date) {
-    const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    const days = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo'
+    ];
     return days[date.weekday - 1];
   }
+
+  void _clampCalendarDay() {
+    final max = _getDaysInMonth(calendarSelectedMonth, calendarSelectedYear);
+    if (calendarSelectedDay < 1) calendarSelectedDay = 1;
+    if (calendarSelectedDay > max) calendarSelectedDay = max;
+  }
+
+  // -------------------- CALENDAR UI --------------------
 
   Widget _buildCalendarYearSelector() {
     return Container(
@@ -565,6 +608,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 setState(() {
                   calendarSelectedYear--;
+                  _clampCalendarDay();
                 });
               },
             ),
@@ -587,6 +631,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () {
                 setState(() {
                   calendarSelectedYear++;
+                  _clampCalendarDay();
                 });
               },
             ),
@@ -632,6 +677,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   } else {
                     calendarSelectedMonth--;
                   }
+                  _clampCalendarDay();
                 });
               },
             ),
@@ -670,6 +716,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   } else {
                     calendarSelectedMonth++;
                   }
+                  _clampCalendarDay();
                 });
               },
             ),
@@ -734,13 +781,40 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             itemCount: calendarDays.length,
             itemBuilder: (context, index) {
-              int day = calendarDays[index];
-              bool isSelected = day == calendarSelectedDay &&
-                  calendarSelectedMonth == DateTime.now().month &&
-                  calendarSelectedYear == DateTime.now().year;
-              bool isToday = day == DateTime.now().day &&
-                  calendarSelectedMonth == DateTime.now().month &&
-                  calendarSelectedYear == DateTime.now().year;
+              final day = calendarDays[index];
+
+              final now = DateTime.now();
+              final isToday = day != 0 &&
+                  day == now.day &&
+                  calendarSelectedMonth == now.month &&
+                  calendarSelectedYear == now.year;
+
+              final isSelected = day != 0 &&
+                  day == calendarSelectedDay; // el mes/año ya es el mismo (la pantalla)
+
+              // Obtener tareas de este día
+              Color? dayBackgroundColor;
+              if (day != 0) {
+                final dateOfCell =
+                    DateTime(calendarSelectedYear, calendarSelectedMonth, day);
+
+                final tasksForDay = allTasks.where((task) {
+                  final taskDate =
+                      DateTime(task.date.year, task.date.month, task.date.day);
+                  return taskDate == dateOfCell;
+                }).toList();
+
+                if (tasksForDay.isNotEmpty) {
+                  if (tasksForDay.any((t) => t.priority == TaskPriority.high)) {
+                    dayBackgroundColor = Colors.red.shade200;
+                  } else if (tasksForDay
+                      .any((t) => t.priority == TaskPriority.medium)) {
+                    dayBackgroundColor = Colors.amber.shade200;
+                  } else {
+                    dayBackgroundColor = Colors.green.shade200;
+                  }
+                }
+              }
 
               return GestureDetector(
                 onTap: day != 0
@@ -754,41 +828,50 @@ class _HomeScreenState extends State<HomeScreen> {
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOutCubic,
                   decoration: BoxDecoration(
-                    gradient: day != 0
-                        ? isToday
-                            ? LinearGradient(
-                                colors: [
-                                  Colors.purple.shade400,
-                                  Colors.blue.shade400,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : isSelected
+                    gradient: day != 0 && isSelected
+                        ? LinearGradient(
+                            colors: [
+                              Colors.indigo.shade400,
+                              Colors.indigo.shade600,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : day != 0 && dayBackgroundColor != null
+                            ? null
+                            : day != 0 && isToday
                                 ? LinearGradient(
                                     colors: [
-                                      Colors.purple.shade300,
-                                      Colors.blue.shade300,
+                                      Colors.purple.shade400,
+                                      Colors.blue.shade400,
                                     ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   )
-                                : null
-                        : null,
-                    color: day == 0
-                        ? Colors.transparent
-                        : !isToday && !isSelected
-                            ? Colors.white.withValues(alpha: 0.7)
-                            : null,
+                                : null,
+                    color: dayBackgroundColor,
                     borderRadius: BorderRadius.circular(15),
-                    border: day != 0 && !isToday && !isSelected
+                    border: day != 0 &&
+                            !isSelected &&
+                            dayBackgroundColor == null &&
+                            !isToday
                         ? Border.all(
                             color: Colors.purple.shade200,
                             width: 1,
                           )
-                        : null,
-                    boxShadow: day != 0 && (isToday || isSelected)
+                        : isSelected
+                            ? Border.all(color: Colors.white, width: 2)
+                            : null,
+                    boxShadow: day != 0 &&
+                            (isToday || isSelected || dayBackgroundColor != null)
                         ? [
                             BoxShadow(
-                              color: Colors.purple.withValues(alpha: 0.4),
+                              color: (isSelected
+                                      ? Colors.indigo
+                                      : isToday
+                                          ? Colors.purple
+                                          : Colors.grey)
+                                  .withValues(alpha: 0.4),
                               blurRadius: 10,
                               spreadRadius: 2,
                             ),
@@ -801,12 +884,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             day.toString(),
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: isToday || isSelected
+                              fontWeight: (isToday || isSelected)
                                   ? FontWeight.bold
                                   : FontWeight.w600,
-                              color: isToday || isSelected
+                              color: (isToday || isSelected)
                                   ? Colors.white
-                                  : Colors.purple.shade700,
+                                  : dayBackgroundColor != null
+                                      ? Colors.black87
+                                      : Colors.purple.shade700,
                             ),
                           ),
                         )
@@ -821,10 +906,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCalendarDateDisplay() {
-    String monthName = _getMonthName(calendarSelectedMonth);
-    String dayOfWeek = _getDayOfWeekName(
-      DateTime(calendarSelectedYear, calendarSelectedMonth, calendarSelectedDay),
-    );
+    final monthName = _getMonthName(calendarSelectedMonth);
+
+    final safeDay = calendarSelectedDay <= 0 ? 1 : calendarSelectedDay;
+    final date = DateTime(calendarSelectedYear, calendarSelectedMonth, safeDay);
+
+    final dayOfWeek = _getDayOfWeekName(date);
 
     return Container(
       decoration: BoxDecoration(
@@ -855,7 +942,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            '$dayOfWeek, $calendarSelectedDay de $monthName de $calendarSelectedYear',
+            '$dayOfWeek, $safeDay de $monthName de $calendarSelectedYear',
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 20,
@@ -869,8 +956,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCalendarTasksList() {
-    // Obtener tareas del día seleccionado en el calendario
-    final selectedDateTime = DateTime(calendarSelectedYear, calendarSelectedMonth, calendarSelectedDay);
+    final safeDay = calendarSelectedDay <= 0 ? 1 : calendarSelectedDay;
+
+    final selectedDateTime =
+        DateTime(calendarSelectedYear, calendarSelectedMonth, safeDay);
+
     final tasksForDay = allTasks.where((task) {
       final taskDate = DateTime(task.date.year, task.date.month, task.date.day);
       return taskDate == selectedDateTime;
@@ -938,101 +1028,111 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: tasksForDay.length,
               itemBuilder: (context, index) {
                 final task = tasksForDay[index];
+
                 final priorityColor = task.priority == TaskPriority.high
                     ? Colors.red
                     : task.priority == TaskPriority.medium
                         ? Colors.orange
                         : Colors.green;
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white,
-                        Colors.blue.shade50,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: priorityColor.withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: priorityColor.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        spreadRadius: 1,
+                return GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => TaskDetailDialog(task: task),
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white,
+                          Colors.blue.shade50,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: priorityColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: priorityColor.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: priorityColor.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          spreadRadius: 1,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                task.title,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.purple.shade700,
-                                  decoration: task.isCompleted
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (task.description != null)
-                                Text(
-                                  task.description!,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.blue.shade600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              const SizedBox(height: 4),
-                              Text(
-                                task.priority.toString().split('.').last.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: priorityColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (task.isCompleted)
-                          Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 28,
-                          )
-                        else
-                          Icon(
-                            Icons.radio_button_unchecked,
-                            color: priorityColor.withValues(alpha: 0.5),
-                            size: 28,
-                          ),
                       ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: priorityColor,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  task.title,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple.shade700,
+                                    decoration: task.isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                                if (task.description != null)
+                                  Text(
+                                    task.description!,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.blue.shade600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  task.priority
+                                      .toString()
+                                      .split('.')
+                                      .last
+                                      .toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: priorityColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          task.isCompleted
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                  size: 28,
+                                )
+                              : Icon(
+                                  Icons.radio_button_unchecked,
+                                  color: priorityColor.withValues(alpha: 0.5),
+                                  size: 28,
+                                ),
+                        ],
+                      ),
                     ),
                   ),
                 );

@@ -17,6 +17,13 @@ class LoadTasksByDate extends TaskEvent {
   List<Object?> get props => [date];
 }
 
+class LoadAllTasksEvent extends TaskEvent {
+  const LoadAllTasksEvent();
+
+  @override
+  List<Object?> get props => [];
+}
+
 class CreateTaskEvent extends TaskEvent {
   final Task task;
 
